@@ -11,4 +11,11 @@ import (
 	"go.mongo.org/mongo-driver/mongo"
 
 )
+func DBinstance() *mongo.Client{
+	err := godotenv.Load(".env")
+	if err != nil{
+		log.Fatal("Eroor loading .env file")
+	}
 
+	
+}
