@@ -58,24 +58,23 @@ func SignUp()gin.HandlerFunc{
 	// defer cancel()
 	if err != nil{
 		log.Panic(err)
-		c.JSON(http.StatusInternalServerError,gin.H)
-		{"error":"error occured while checking for the phone number"}
+		c.JSON(http.StatusInternalServerError,gin.H{"error":"error occured while checking for the phone number"})
 	}
 if count > 0{
 	c.JSON(http.StatusInternalServerError,gin.H{"error":"This phone number of email already exists"})
 }
 user.Created_at, _ = time.Parse(time.RFC3339,time.Now().Format(time.RFC3339))
-user.Update_at,_ = time.Parse(time.RFC3339,time.Now().Format(time.RFC3339))
+user.Updated_at,_ = time.Parse(time.RFC3339,time.Now().Format(time.RFC3339))
 user.ID = primitive.NewObjectID()
 user.User_id = user.ID.Hex()
-token,refreshToken,_ := helper.GenerateAllTokens(*user.Email,*user.First_name,*user.Last_name,*user.User_type,user.User_id)
+token,refreshToken,_ := helper.GenerateAllTokens(*user.Email,*user.FirstName,*user.LastName,*user.User_type,user.User_id)
 user.Token = &token
 user.Refresh_token = &refreshToken
 
-resultIsertionNumber, inserErr := userColletion.InsertOne(ctx,user)
+resultInsertionNumber, inserErr := userCollection.InsertOne(ctx,user)
 if inserErr != nil{
 	msg := fmt.Sprintf("User item was not created")
-	c.JSON(http.StatusIntenalServerError,gin.H{"error":msg})
+	c.JSON(http.StatusInternalServerError,gin.H{"error":msg})
 	return
 }
 defer cancel()
@@ -84,3 +83,48 @@ c.JSON(http.StatusOK,resultInsertionNumber)
 	}
 
 }
+
+
+func Login() gin.HandlerFunc{
+	return func(c *gin.Context){
+		var ctx,cancel = context.WithTimeout(context.Background(),100*time.Second)
+    defer cancel()
+		var user models.User
+		var foundUser models.User
+
+		if err := c.BindJSON(&user);err != nil{
+			c.JSON(http.StatusBadRequest,gin.H{"error":err.Error()})
+			return
+		}
+		err := userCollection.FindOne(ctx, bson.M{"email":user.Email}).Decode(&foundUser)
+		defer cancel()
+		if err != nil{
+			c.JSON(http.StatusInternalServerError,gin.H{"error":"email or pasword is incorrect"})
+			return
+		}
+
+		passwordIsValid,msg := VerifyPassword(*user.Password,*foundUser.Password)
+		defer cancel()
+		if !passwordIsValid {
+			c.JSON(http.StatusInternalServerError,gin.H{"error":msg})
+			return
+		}
+
+		if foundUser.Email == nil{
+			c.JSON(http.StatusInternalServerError,gin.H{"error":"user not found"})
+		}
+		token,refreshToken,_ := helper.GenerateAllTokens(*foundUser.Email,*foundUser.FirstName,*foundUser.LastName,*foundUser.User_type,foundUser.User_id)
+		err = userCollection.FindOne(ctx,bson.M{"user_id":foundUser.User_id}).Decode(&foundUser)
+
+		if err != nil{
+			c.JSON(http.StatusInternalServerError,gin.H{"error":err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK,foundUser)
+	}
+
+
+}
+
+
+
