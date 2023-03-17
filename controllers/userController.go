@@ -55,7 +55,7 @@ func SignUp()gin.HandlerFunc{
 		return
 	}
 	count,err := userCollection.CountDocuments(ctx,bson.M{"phone":user.Phone})
-	defer cancel()
+	// defer cancel()
 	if err != nil{
 		log.Panic(err)
 		c.JSON(http.StatusInternalServerError,gin.H)
